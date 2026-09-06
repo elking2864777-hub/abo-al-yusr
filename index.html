@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abo Al-Yusr - أبو اليسر للمشويات</title>
+    <style>
+        :root { --main-color: #d35400; --bg-color: #f8f9fa; }
+        body { font-family: system-ui, sans-serif; background-color: var(--bg-color); margin: 0; padding: 15px; }
+        header { background: #2c3e50; color: white; text-align: center; padding: 15px; border-radius: 8px; }
+        header h1 { margin: 0; font-size: 24px; }
+        .nav-btns { margin-top: 10px; }
+        .nav-btns button { background: var(--main-color); color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .page { display: none; margin-top: 20px; }
+        .active { display: block; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .btn-add { background: #27ae60; color: white; border: none; padding: 8px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .cart-box { background: white; padding: 15px; border-radius: 8px; margin-top: 20px; border: 2px solid var(--main-color); }
+        input, select { width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; }
+        .order-card { border-right: 5px solid #3498db; margin-bottom: 10px; background: white; padding: 15px; border-radius: 8px; }
+        .status-new { color: #e74c3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Abo Al-Yusr Grills | مشويات أبو اليسر</h1>
+        <div class="nav-btns">
+            <button onclick="showPage('clientPage')">قائمة الطعام (العملاء)</button>
+            <button onclick="showPage('adminPage')" style="background:#34495e;">لوحة التحكم (الإدارة)</button>
+        </div>
+    </header>
+
+    <!-- صفحة الزبائن -->
+    <div id="clientPage" class="page active">
+        <h2>منيو المشويات</h2>
+        <div class="grid">
+            <div class="card">
+                <h3>كفتة كندوز / Kofta</h3>
+                <p>السعر للكيلو: 350 جنيه</p>
+                <select id="weight1">
+                    <option value="1 كيلو">1 كيلو</option>
+                    <option value="نصف كيلو">نصف كيلو</option>
+                    <option value="ربع كيلو">ربع كيلو</option>
+                </select>
+                <button class="btn-add" onclick="addToCart('كفتة كندوز', document.getElementById('weight1').value)">إضافة للطلب</button>
+            </div>
+            <div class="card">
+                <h3>طرب ضاني / Tarb</h3>
+                <p>السعر للكيلو: 400 جنيه</p>
+                <select id="weight2">
+                    <option value="1 كيلو">1 كيلو</option>
+                    <option value="نصف كيلو">نصف كيلو</option>
+                    <option value="ربع كيلو">ربع كيلو</option>
+                </select>
+                <button class="btn-add" onclick="addToCart('طرب ضاني', document.getElementById('weight2').value)">إضافة للطلب</button>
+            </div>
+            <div class="card">
+                <h3>فرخة مشوية / Grilled Chicken</h3>
+                <p>السعر: 180 جنيه</p>
+                <select id="weight3">
+                    <option value="فرخة كاملة">فرخة كاملة</option>
+                    <option value="نص فرخة">نص فرخة</option>
+                </select>
+                <button class="btn-add" onclick="addToCart('فرخة مشوية', document.getElementById('weight3').value)">إضافة للطلب</button>
+            </div>
+        </div>
+
+        <div class="cart-box">
+            <h3>سلة الطلب</h3>
+            <ul id="cartItems"></ul>
+            <input type="text" id="custName" placeholder="اسمك الكريم" required>
+            <input type="text" id="custPhone" placeholder="رقم الهاتف" required>
+            <input type="text" id="custAddress" placeholder="العنوان بالتفصيل" required>
+            <button class="btn-add" style="background:var(--main-color);" onclick="submitOrder()">إرسال الطلب للمحل</button>
+        </div>
+    </div>
+
+    <!-- لوحة تحكم المحل -->
+    <div id="adminPage" class="page">
+        <h2>لوحة إدارة الطلبات الحية (Abo Al-Yusr Dashboard)</h2>
+        <p>تنبيه: اترك هذه الصفحة مفتوحة في المحل لسماع صوت التنبيه فور وصول طلب جديد.</p>
+        <div id="ordersList"></div>
+    </div>
+
+    <!-- مكتبات Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // بيانات Firebase الخاصة بـ Abo Al-Yusr
+        const firebaseConfig = {
+            apiKey: "AIzaSyAkC49sNa7C8rLDL9haYgmRBBtI5_myZKk",
+            authDomain: "abo-e-51c20.firebaseapp.com",
+            projectId: "abo-e-51c20",
+            storageBucket: "abo-e-51c20.firebasestorage.app",
+            messagingSenderId: "157176150148",
+            appId: "1:157176150148:web:81afd058081d828f03ead1",
+            measurementId: "G-3RQ96Z7LRP"
+        };
+
+        // تهيئة Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let cart = [];
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        function addToCart(item, size) {
+            cart.push({ item, size });
+            renderCart();
+        }
+
+        function renderCart() {
+            const list = document.getElementById('cartItems');
+            list.innerHTML = '';
+            cart.forEach(c => {
+                list.innerHTML += `<li>${c.item} (${c.size})</li>`;
+            });
+        }
+
+        // إرسال الطلب وحفظه في Firebase
+        function submitOrder() {
+            const name = document.getElementById('custName').value;
+            const phone = document.getElementById('custPhone').value;
+            const address = document.getElementById('custAddress').value;
+
+            if(!name || !phone || cart.length === 0) {
+                alert('برجاء إكمال البيانات وإضافة أطباق للسلة!');
+                return;
+            }
+
+            db.collection("orders").add({
+                customer: name,
+                phone: phone,
+                address: address,
+                items: cart,
+                status: "جديد",
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                alert("تم إرسال طلبك إلى Abo Al-Yusr بنجاح!");
+                cart = [];
+                renderCart();
+                document.getElementById('custName').value = '';
+                document.getElementById('custPhone').value = '';
+                document.getElementById('custAddress').value = '';
+            }).catch(error => {
+                alert("حدث خطأ: " + error.message);
+            });
+        }
+
+        // الاستماع للطلبات الجديدة في لوحة التحكم لحظياً
+        db.collection("orders").orderBy("timestamp", "desc")
+        .onSnapshot(snapshot => {
+            const ordersDiv = document.getElementById('ordersList');
+            ordersDiv.innerHTML = '';
+
+            snapshot.forEach(doc => {
+                const order = doc.data();
+                const itemsText = order.items ? order.items.map(i => `${i.item} [${i.size}]`).join(' + ') : '';
+                
+                ordersDiv.innerHTML += `
+                    <div class="order-card">
+                        <span class="status-new">● الحالة: ${order.status}</span>
+                        <h3>العميل: ${order.customer} - ${order.phone}</h3>
+                        <p><strong>العنوان:</strong> ${order.address}</p>
+                        <p><strong>الطلب:</strong> ${itemsText}</p>
+                        <button onclick="updateStatus('${doc.id}')">تأكيد وتحويل للشواية</button>
+                    </div>
+                `;
+            });
+
+            audio.play().catch(()=>{}); 
+        });
+
+        function updateStatus(docId) {
+            db.collection("orders").doc(docId).update({ status: "جاري التحضير على الشواية" });
+        }
+    </script>
+</body>
+</html>
