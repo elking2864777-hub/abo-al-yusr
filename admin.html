@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | لوحة تحكم أبو اليسر</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #f97316; }
+        * { box-sizing: border-box; font-family: 'Tajawal', sans-serif; }
+        body { background: var(--bg); color: #f8fafc; margin: 0; padding: 20px; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 15px 25px; border-radius: 12px; margin-bottom: 25px; border-bottom: 3px solid var(--accent); }
+        h1 { margin: 0; font-size: 22px; color: var(--accent); }
+        
+        /* Auth Screen */
+        #loginBox { max-width: 400px; margin: 100px auto; background: var(--card); padding: 30px; border-radius: 12px; text-align: center; }
+        
+        /* Dashboard Content */
+        .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .order-card { background: var(--card); border-radius: 12px; padding: 18px; border-right: 6px solid #3b82f6; position: relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+        
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; margin-bottom: 10px; }
+        .st-جديد { background: #ef4444; color: white; }
+        .st-شواية { background: #f59e0b; color: white; }
+        .st-طيار { background: #3b82f6; color: white; }
+        .st-مكتمل { background: #10b981; color: white; }
+
+        .items-list { background: #0f172a; padding: 10px; border-radius: 8px; margin: 10px 0; }
+        .item-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+        
+        .total-row { font-size: 18px; font-weight: bold; color: #10b981; margin-top: 10px; text-align: left; }
+        
+        .btn-action { background: #334155; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; margin-top: 5px; width: 100%; }
+        .btn-action:hover { background: var(--accent); }
+        
+        input, select { width: 100%; background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="loginBox">
+        <h2>لوحة إشراف Abo Al-Yusr</h2>
+        <p>أدخل كلمة المرور الخاصة بالمحل:</p>
+        <input type="password" id="passInput" placeholder="كلمة المرور">
+        <button class="btn-action" style="background:var(--accent); padding:12px;" onclick="checkPass()">دخول اللوحة</button>
+    </div>
+
+    <div id="dashContent" style="display: none;">
+        <header>
+            <h1>شاشة طلبات Abo Al-Yusr الحية 🔴</h1>
+            <button class="btn-action" style="width:auto; background:#dc2626;" onclick="location.reload()">تسجيل خروج</button>
+        </header>
+
+        <div class="orders-grid" id="ordersContainer">
+            </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAkC49sNa7C8rLDL9haYgmRBBtI5_myZKk",
+            authDomain: "abo-e-51c20.firebaseapp.com",
+            projectId: "abo-e-51c20",
+            storageBucket: "abo-e-51c20.firebasestorage.app",
+            messagingSenderId: "157176150148",
+            appId: "1:157176150148:web:81afd058081d828f03ead1"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+
+        function checkPass() {
+            const pass = document.getElementById('passInput').value;
+            if(pass === "123456") { // كلمة المرور الافتراضية
+                document.getElementById('loginBox').style.display = 'none';
+                document.getElementById('dashContent').style.display = 'block';
+                startOrdersListener();
+            } else {
+                alert("كلمة المرور غير صحيحة!");
+            }
+        }
+
+        function startOrdersListener() {
+            db.collection("orders").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+                const container = document.getElementById('ordersContainer');
+                container.innerHTML = '';
+
+                snapshot.forEach(doc => {
+                    const o = doc.data();
+                    let itemsHtml = '';
+                    if(o.items) {
+                        o.items.forEach(i => {
+                            itemsHtml += `<div class="item-row"><span>${i.item} (${i.size})</span><b>${i.price} ج.م</b></div>`;
+                        });
+                    }
+
+                    let statusClass = "st-جديد";
+                    if(o.status === "على الشواية") statusClass = "st-شواية";
+                    if(o.status === "مع الطيار") statusClass = "st-طيار";
+                    if(o.status === "تم التسليم") statusClass = "st-مكتمل";
+
+                    container.innerHTML += `
+                        <div class="order-card">
+                            <span class="status-badge ${statusClass}">${o.status}</span>
+                            <h3 style="margin:5px 0; color:#fff;">${o.customer}</h3>
+                            <p style="margin:2px 0; color:#94a3b8;">📞 ${o.phone}</p>
+                            <p style="margin:2px 0; color:#94a3b8;">📍 ${o.address}</p>
+                            ${o.notes ? `<p style="color:#e2e8f0; background:#334155; padding:5px; border-radius:4px; font-size:12px;">📝 ${o.notes}</p>` : ''}
+                            
+                            <div class="items-list">
+                                ${itemsHtml}
+                            </div>
+                            
+                            <div class="total-row">الإجمالي: ${o.total || 0} ج.م</div>
+                            
+                            <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                                <button class="btn-action" style="background:#f59e0b;" onclick="changeStatus('${doc.id}', 'على الشواية')">🔥 للشواية</button>
+                                <button class="btn-action" style="background:#3b82f6;" onclick="changeStatus('${doc.id}', 'مع الطيار')">🛵 للطيار</button>
+                                <button class="btn-action" style="background:#10b981; grid-column: span 2;" onclick="changeStatus('${doc.id}', 'تم التسليم')">✅ تم التسليم</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                audio.play().catch(()=>{});
+            });
+        }
+
+        function changeStatus(id, newStatus) {
+            db.collection("orders").doc(id).update({ status: newStatus });
+        }
+    </script>
+</body>
+</html>
